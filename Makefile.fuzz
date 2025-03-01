@@ -1,0 +1,42 @@
+
+# Fuzzing
+
+# Compiler and Flags
+CC = clang
+CXX = clang++
+CFLAGS = -g -O1 -Wall -std=gnu11 -D_GNU_SOURCE -DFUZZING -fsanitize=fuzzer,address
+CXXFLAGS = -g -O1 -fsanitize=fuzzer,address -std=c++17
+INCLUDES = -I. -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
+LIBS = -lcups -lcupsfilters -lppd -lgio-2.0 -lgobject-2.0 -lglib-2.0 -ldbus-glib-1
+
+# Target and Objects
+FUZZ_TARGET = fuzz_cups_browsed
+OBJS = daemon/cups-browsed.o daemon/cups-notifier.o
+
+# Phony Targets
+.PHONY: all clean
+
+all: $(FUZZ_TARGET)
+
+# Generate cups-notifier files
+daemon/cups-notifier.c daemon/cups-notifier.h: daemon/org.cups.cupsd.Notifier.xml
+	gdbus-codegen \
+		--interface-prefix org.cups.cupsd \
+		--c-namespace Cups \
+		--generate-c-code daemon/cups-notifier \
+		$<
+
+# Object File Compilation
+daemon/cups-browsed.o: daemon/cups-browsed.c daemon/cups-notifier.h
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+daemon/cups-notifier.o: daemon/cups-notifier.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+# Linking Fuzzer Target
+$(FUZZ_TARGET): $(OBJS) fuzz_cups_browsed.cc
+	$(CXX) $(CXXFLAGS) $(OBJS) fuzz_cups_browsed.cc -o $(FUZZ_TARGET) $(LIBS)
+
+# Clean Up
+clean:
+	rm -f $(FUZZ_TARGET) $(OBJS) daemon/cups-notifier.o daemon/cups-notifier.h daemon/cups-notifier.c

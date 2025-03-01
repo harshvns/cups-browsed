@@ -11,6 +11,14 @@
 // information.
 //
 
+#define CUPS_SERVERROOT "/usr/share/cups"
+#define VERSION "1.0"
+#ifdef FUZZING
+#define main cups_browsed_main
+#endif
+
+
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -4674,7 +4682,7 @@ is_cups_default_printer(const char *printer)
 }
 
 
-static int
+int
 invalidate_default_printer(int local)
 {
   const char *filename = local ? local_default_printer_file :
